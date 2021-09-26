@@ -1,5 +1,7 @@
 #include <Gamebuino-Meta.h>
 
+#define AI_DIFFICULTY 2 // the higher the easier
+
 // ball attributes
 static int ball_posX = 20;
 static int ball_posY = 20;
@@ -9,15 +11,16 @@ static const int ball_size = 4;
 
 
 // Dimension of both paddles
-static const int paddle_height = 10;
+static const int paddle_height = 8;
 static const int paddle_width = 3;
 
 // paddle1 attributes
-static const int paddle1_posX = 0;
+static const int paddle1_posX = 5;
 static int paddle1_posY = 30;
+static int paddle1_speed = 0;
 
 // paddle2 attributes
-static const int paddle2_posX = gb.display.width() - paddle_width;
+static const int paddle2_posX = gb.display.width() - paddle_width - 5;
 static int paddle2_posY = 30;
 static int paddle2_speed = 0;
 
@@ -26,11 +29,11 @@ static int score_1 = 0;
 static int score_2 = 0;
 
 // difficulty
-enum Difficulty {easy=5, medium=3, hard=2};
-static Difficulty upper_limit = easy; // defines the difficulty of the game (the lower, the more difficult)
+enum Mode {AI=0, singleplayer, multiplayer};
+static Mode mode = AI; // defines game mode
 
 // Functions
-inline static void update_difficulty();
+inline static void update_mode();
 inline static void update_paddle1_position();
 inline static void update_paddle2_position();
 inline static void update_ball_position();
@@ -49,7 +52,7 @@ void loop()
   while(!gb.update());
   gb.display.clear();
 
-  update_difficulty();
+  update_mode();
   update_paddle1_position();
   update_paddle2_position();
   update_ball_position();
@@ -60,21 +63,21 @@ void loop()
 }
 
 
-inline static void update_difficulty()
+inline static void update_mode()
 {
   if(gb.buttons.pressed(BUTTON_MENU))
   {
-    // Toggle difficulty
-    switch(upper_limit)
+    // Toggle game mode
+    switch(mode)
     {
-    case easy:
-      upper_limit = medium;
+    case AI:
+      mode = singleplayer;
       break;
-    case medium:
-      upper_limit = hard;
+    case singleplayer:
+      mode = multiplayer;
       break;
-    case hard:
-      upper_limit = easy;
+    case multiplayer:
+      mode = AI;
       break;
     }
   }
@@ -82,32 +85,69 @@ inline static void update_difficulty()
 
 inline static void update_paddle1_position()
 {
-    // Update paddle1 position
-  if (gb.buttons.repeat(BUTTON_UP, 0)) 
+
+  switch(mode)
   {
-    paddle1_posY = paddle1_posY - 1;
-  }
-  if (gb.buttons.repeat(BUTTON_DOWN, 0)) 
-  {
-    paddle1_posY = paddle1_posY + 1;
+    case AI:
+    // control paddle 1 automatically
+      if (ball_posY < (paddle1_posY + (paddle_height/2))
+      && random(0, AI_DIFFICULTY) == 1) 
+      {
+        paddle1_speed = -2;
+      }
+      else if (ball_posY > (paddle1_posY + (paddle_height/2))
+          && random(0, AI_DIFFICULTY) == 1)
+      {
+        paddle1_speed = +2;
+      }
+      paddle1_posY = paddle1_posY + paddle1_speed;
+      break;
+    case singleplayer:
+    case multiplayer:
+    // control paddle 1 manually
+      if (gb.buttons.repeat(BUTTON_UP, 0)) 
+      {
+        paddle1_posY = paddle1_posY - 1;
+      }
+      if (gb.buttons.repeat(BUTTON_DOWN, 0)) 
+      {
+        paddle1_posY = paddle1_posY + 1;
+      }
+      break;
   }
 }
 
 inline static void update_paddle2_position()
 {
-   // Update paddle2 position
-  if (ball_posY < (paddle2_posY + (paddle_height/2))
-      && random(0, upper_limit) == 1) 
+   switch(mode)
   {
-    paddle2_speed = -2;
+    case multiplayer:
+        // control paddle 2 manually
+      if (gb.buttons.repeat(BUTTON_B, 0)) 
+      {
+        paddle2_posY = paddle2_posY - 1;
+      }
+      if (gb.buttons.repeat(BUTTON_A, 0)) 
+      {
+        paddle2_posY = paddle2_posY + 1;
+      }
+      break;
+    case singleplayer:
+    case AI:
+    // control paddle 2 automatically
+      if (ball_posY < (paddle2_posY + (paddle_height/2))
+          && random(0, AI_DIFFICULTY) == 1) 
+      {
+        paddle2_speed = -2;
+      }
+      else if (ball_posY > (paddle2_posY + (paddle_height/2))
+          && random(0, AI_DIFFICULTY) == 1)
+      {
+        paddle2_speed = +2;
+      }
+      paddle2_posY = paddle2_posY + paddle2_speed;
+      break;
   }
-  else if (ball_posY > (paddle2_posY + (paddle_height/2))
-      && random(0, upper_limit) == 1)
-  {
-    paddle2_speed = +2;
-  }
-
-    paddle2_posY = paddle2_posY + paddle2_speed;
 }
 
 inline static void update_ball_position()
@@ -183,29 +223,34 @@ inline static void check_game_over()
 
 inline static void display()
 {
-    // Display ball
+  // Display ball and paddles
+  gb.display.setColor(RED);
   gb.display.fillRect(ball_posX, ball_posY, ball_size, ball_size);
-  // Display paddle1
+  gb.display.setColor(WHITE);
   gb.display.fillRect(paddle1_posX, paddle1_posY, paddle_width, paddle_height);
-    // Display paddle2
   gb.display.fillRect(paddle2_posX, paddle2_posY, paddle_width, paddle_height);
-  // Display score
+  
+  // display score
+  gb.display.setColor(BLUE);
   gb.display.setCursor(30, 3);
   gb.display.print(score_1);
   gb.display.print(" - ");
   gb.display.print(score_2);
 
-  gb.display.setCursor(30, gb.display.height()-8);
-  switch(upper_limit)
+  // display game mode
+  switch(mode)
   {
-  case easy:
-    gb.display.print("EASY");
+  case AI:
+    gb.display.setCursor(33, gb.display.height()-8);
+    gb.display.print("AI");
     break;
-  case medium:
-    gb.display.print("MEDIUM");
+  case singleplayer:
+    gb.display.setCursor(20, gb.display.height()-8);
+    gb.display.print("Singleplayer");
     break;
-  case hard:
-    gb.display.print("HARD");
+  case multiplayer:
+    gb.display.setCursor(22, gb.display.height()-8);
+    gb.display.print("Multiplayer");
     break;
   }
 }

@@ -1,6 +1,9 @@
 #include <Gamebuino-Meta.h>
 
-#define AI_DIFFICULTY 2 // the higher the easier
+#define AI_HANDICAP 2 // the higher the easier
+#define FPS 40        // framerate
+
+#define SIGN(x)  (((x) > 0) ? 1 : -1)
 
 // ball attributes
 static int ball_posX = 20;
@@ -8,7 +11,6 @@ static int ball_posY = 20;
 static int ball_speedX = 1;
 static int ball_speedY = 1;
 static const int ball_size = 4;
-
 
 // Dimension of both paddles
 static const int paddle_height = 8;
@@ -44,12 +46,13 @@ inline static void display();
 void setup() 
 {
   gb.begin();
+  gb.setFrameRate(FPS);
 }
 
 
 void loop() 
 {
-  while(!gb.update());
+  gb.waitForUpdate();
   gb.display.clear();
 
   update_mode();
@@ -91,12 +94,12 @@ inline static void update_paddle1_position()
     case AI:
     // control paddle 1 automatically
       if (ball_posY < (paddle1_posY + (paddle_height/2))
-      && random(0, AI_DIFFICULTY) == 1) 
+      && random(0, AI_HANDICAP) == 1) 
       {
         paddle1_speed = -2;
       }
       else if (ball_posY > (paddle1_posY + (paddle_height/2))
-          && random(0, AI_DIFFICULTY) == 1)
+          && random(0, AI_HANDICAP) == 1)
       {
         paddle1_speed = +2;
       }
@@ -108,10 +111,12 @@ inline static void update_paddle1_position()
       if (gb.buttons.repeat(BUTTON_UP, 0)) 
       {
         paddle1_posY = paddle1_posY - 1;
+        paddle1_speed = -1;
       }
       if (gb.buttons.repeat(BUTTON_DOWN, 0)) 
       {
         paddle1_posY = paddle1_posY + 1;
+        paddle1_speed = +1;
       }
       break;
   }
@@ -126,22 +131,24 @@ inline static void update_paddle2_position()
       if (gb.buttons.repeat(BUTTON_B, 0)) 
       {
         paddle2_posY = paddle2_posY - 1;
+        paddle2_speed = -1;
       }
       if (gb.buttons.repeat(BUTTON_A, 0)) 
       {
         paddle2_posY = paddle2_posY + 1;
+        paddle2_speed = +1;
       }
       break;
     case singleplayer:
     case AI:
     // control paddle 2 automatically
       if (ball_posY < (paddle2_posY + (paddle_height/2))
-          && random(0, AI_DIFFICULTY) == 1) 
+          && random(0, AI_HANDICAP) == 1) 
       {
         paddle2_speed = -2;
       }
       else if (ball_posY > (paddle2_posY + (paddle_height/2))
-          && random(0, AI_DIFFICULTY) == 1)
+          && random(0, AI_HANDICAP) == 1)
       {
         paddle2_speed = +2;
       }
@@ -170,9 +177,11 @@ inline static void check_collisions()
 
   // Ball-paddle1 collisions
   if ( (ball_posX == paddle1_posX + paddle_width)
-    && (ball_posY + ball_size >= paddle1_posY) 
-    && (ball_posY <= paddle1_posY + paddle_height) ) {
+        && (ball_posY + ball_size >= paddle1_posY) 
+        && (ball_posY <= paddle1_posY + paddle_height) ) 
+  {
     ball_speedX = 1;
+    ball_speedY = SIGN(paddle1_speed);
   }
 
   // Ball-paddle2 collisions
@@ -180,6 +189,7 @@ inline static void check_collisions()
     && (ball_posY + ball_size >= paddle2_posY) 
     && (ball_posY <= paddle2_posY + paddle_height) ) {
     ball_speedX = -1;
+    ball_speedY = SIGN(paddle2_speed);
   }
 }
 
